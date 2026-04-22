@@ -12,7 +12,6 @@ func mockInsert(tree *BTree) {
 	tree.Insert(26)
 	tree.Insert(25)
 
-	// after our complete tree construction:
 	tree.Insert(27)
 	tree.Insert(2)
 	tree.Insert(48)
@@ -20,5 +19,13 @@ func mockInsert(tree *BTree) {
 	tree.Insert(21)
 	tree.Insert(22)
 	tree.Insert(4)
-	tree.Insert(5) // very amazing testcase, my tree solved it when literally i couldn't figure out what might happen here
+	tree.Insert(5)
+	tree.Insert(90)
+	tree.Insert(92)
+	tree.Insert(100)
+	tree.Insert(102)
+	tree.Insert(104)
+	tree.Insert(107)
+	tree.Insert(108)
+	tree.Insert(110)
 }

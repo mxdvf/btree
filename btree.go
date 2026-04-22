@@ -32,6 +32,13 @@ type BTree struct {
 	root *Node
 }
 
+// Case 1A: leaf has t keys --> simply delete it (20)
+// Case 1B: leaf has t-1 keys, but sibling has t keys --> swap mechanism (32)
+
+// Case 2A: internal node, left child has t keys --> pred/succ mechanism (11)
+// Case 2B: internal node, left child has t-1 BUT right child has t keys --> pred/succ mechanism (11)
+// Case 2C: internal node, neither child has t keys --> merging
+
 func (t *BTree) Search(k uint16) bool {
 	node := t.root
 	for node != nil {
@@ -119,6 +126,7 @@ func (t *BTree) insertInSubtree(node *Node, k uint16) {
 				t.splitChild(node, node.children[idx], nil)
 			}
 			// then proceed
+			idx = t.calculateAppropriateIdx(node.keys, k)
 			t.insertInSubtree(node.children[idx], k)
 
 		// Case B2: if appropriate child (a leaf) has space, insert there
@@ -189,12 +197,12 @@ func (t *BTree) calculateAppropriateIdx(nodeKeys []uint16, k uint16) int {
 
 // print is a recursive function that uses BFS (damn! never thought I would)
 // use it in my systems journey)
-func Print(root *Node) {
-	if root == nil {
+func (tree *BTree) Print() {
+	if tree.root == nil {
 		return
 	}
 
-	queue := []*Node{root}
+	queue := []*Node{tree.root}
 	level := 0
 	for len(queue) > 0 {
 		size := len(queue)
@@ -227,5 +235,5 @@ func main() {
 		root: NewNode(true, nil),
 	}
 	mockInsert(tree)
-	fmt.Println(tree.Search(90))
+	tree.Print()
 }
