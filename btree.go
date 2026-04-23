@@ -32,12 +32,33 @@ type BTree struct {
 	root *Node
 }
 
-// Case 1A: leaf has t keys --> simply delete it (20)
-// Case 1B: leaf has t-1 keys, but sibling has t keys --> swap mechanism (32)
+// Case 1: leaf has t keys --> simply delete it
 
-// Case 2A: internal node, left child has t keys --> pred/succ mechanism (11)
-// Case 2B: internal node, left child has t-1 BUT right child has t keys --> pred/succ mechanism (11)
-// Case 2C: internal node, neither child has t keys --> merging
+// Case 2A: internal node, left child has t keys --> predecessor mechanism
+// Case 2B: internal node, left child has t-1 BUT right child has t keys --> successor mechanism
+// Case 2C: internal node, neither child has t keys --> merging left, right and the key and then removing the key
+
+// Preemptive fixation: about to get into a node that has t-1 keys --> if sibling has t keys then borrow/rotate, if not then merge
+// ---- only reason we do this is because let's say we're about to descend into a child with t-1 keys, and the key to be deleted is in that child
+// ---- which we figure out on the next iteraiton obviously, then it causes a lot of issues because we then retroactively fix the tree which is tougher
+// ---- than proactively fixing it
+
+func (t *BTree) Delete(k uint16) {
+	// setup: recursive function, each time, we specify the next child -- something like delete(node, k)
+
+	// 0. as soon as you enter a given node, perform proactive remediation here
+
+	// 1. now that you're on the node, check if it even contains the key
+	// 2. if not, recurse to the next possible child
+
+	// 3. if yes, do this:
+	// A. if it's a leaf and has t keys, delete
+	// B. if it's an internal node, left child has t keys --> predecessor mechanism
+	// C. if it's an internal node && left child does not have t keys, right child does --> successor mechanism
+	// D. if it's an internal node, neither child has t keys --> perform merging of left, right and the key followed by removing the key
+
+	// *** even if internal node has `t` keys, cannot delete it because who will replace the key? where will the children go? someone needs to maintain the balance
+}
 
 func (t *BTree) Search(k uint16) bool {
 	node := t.root
@@ -124,9 +145,9 @@ func (t *BTree) insertInSubtree(node *Node, k uint16) {
 			// pre-emptively break down an internal node if it's full
 			if len(node.children[idx].keys) == MAX_KEYS_PER_NODE {
 				t.splitChild(node, node.children[idx], nil)
+				idx = t.calculateAppropriateIdx(node.keys, k)
 			}
 			// then proceed
-			idx = t.calculateAppropriateIdx(node.keys, k)
 			t.insertInSubtree(node.children[idx], k)
 
 		// Case B2: if appropriate child (a leaf) has space, insert there
