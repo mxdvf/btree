@@ -6,12 +6,11 @@ func mockInsert(tree *BTree) {
 	tree.Insert(12)
 	tree.Insert(24)
 	tree.Insert(6)
-	tree.Insert(28)
+	tree.Insert(31)
 	tree.Insert(32)
 	tree.Insert(18)
 	tree.Insert(26)
 	tree.Insert(25)
-
 	tree.Insert(27)
 	tree.Insert(2)
 	tree.Insert(48)
@@ -28,4 +27,5 @@ func mockInsert(tree *BTree) {
 	tree.Insert(107)
 	tree.Insert(108)
 	tree.Insert(110)
+	tree.Insert(105)
 }
