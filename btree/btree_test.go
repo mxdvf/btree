@@ -146,8 +146,11 @@ func TestCustom(t *testing.T) {
 	}
 	t.Log(tr)
 
-	tr.Delete(92)
+	tr.Delete(108)
 	t.Log(tr)
+
+	// tr.Delete(100)
+	// t.Log(tr)
 
 	// tree.Delete(102)
 	// tree.Print()

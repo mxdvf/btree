@@ -6,7 +6,7 @@ package btree
 func calculateAppropriateIdx(keys []uint16, k uint16) int {
 	var idx int
 	for idx = 0; idx < len(keys); idx++ {
-		if k < keys[idx] {
+		if k <= keys[idx] {
 			break
 		}
 	}
