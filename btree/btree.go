@@ -1,7 +1,6 @@
 package btree
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 )
@@ -26,69 +25,73 @@ type Node struct {
 	data []byte
 }
 
-// TODO:
-// 3. come up with code that can ONLY READ FOR NOW the pointers and key-value pairs
-// 4. forget everything and only perform operations assume only this node exists, remove/insert keys, etc.
-
-func NewLeafNode(nkeys uint16) *Node {
-	return newNode(NODE_TYPE_LEAF, nkeys)
+func NewLeafNode() *Node {
+	return newNode(NODE_TYPE_LEAF)
 }
 
-func NewInternalNode(nkeys uint16) *Node {
-	return newNode(NODE_TYPE_INTERNAL, nkeys)
+func NewInternalNode() *Node {
+	return newNode(NODE_TYPE_INTERNAL)
 }
 
-func newNode(t int, nkeys uint16) *Node {
-	n := &Node{
-		data: make([]byte, 4096),
-	}
+func newNode(t int) *Node {
+	n := &Node{data: make([]byte, 4096)}
 	binary.BigEndian.PutUint16(n.data[0:], uint16(t))
-	binary.BigEndian.PutUint16(n.data[2:], nkeys)
 	return n
 }
 
-// Only for internal debugging
-func (n *Node) debugPrint() {
-	fmt.Println("only showing top 100 bytes:")
-	fmt.Println(n.data[:100])
-}
-
-func (n *Node) getType() int {
-	return int(binary.BigEndian.Uint16(n.data[0:]))
+func (n *Node) Insert(k, v []byte) {
+	// if nkeys=0, insert manually because most probably this is the first key ever
+	if n.getNKeys() <= 0 {
+		n.insertFirstKV(k, v)
+		// TODO: update offset list
+		n.incrementNKeys()
+		return
+	}
+	// else, insert maintaing the invariants
+	n.insert(k, v)
 }
 
 func (n *Node) getNKeys() int {
 	return int(binary.BigEndian.Uint16(n.data[2:]))
 }
 
-func (n *Node) getAppropriateIdx(target []byte) (int, int) {
-	// TODO: switch to binary search, right now
-	// this is standard linear search
-	start := HEADER_SIZE + n.getNKeys()*PTR_SIZE
-	var offsetPos, nextOffsetPos uint16
-	for i := 0; i < n.getNKeys(); i++ {
-		offsetPos = binary.BigEndian.Uint16(n.data[start+(i*OFFSET_SIZE):])
+func (n *Node) insertFirstKV(k, v []byte) {
+	start := HEADER_SIZE + PTR_SIZE + OFFSET_SIZE
+	binary.BigEndian.PutUint16(n.data[start:], uint16(len(k)))
 
-		key := n.getKeyByOffset(offsetPos)
-		if res := bytes.Compare(target, key); res == -1 || res == 0 {
-			nextOffsetPos = uint16(start + ((i + 1) * OFFSET_SIZE))
-			break
-		}
-	}
-	return int(offsetPos), int(nextOffsetPos)
+	start = start + KEY_LEN_SIZE
+	end := start + len(k)
+	copy(n.data[start:end+1], k)
+
+	start = end
+	binary.BigEndian.PutUint16(n.data[start:], uint16(len(v)))
+
+	start = start + VAL_LEN_SIZE
+	end = start + len(v)
+	copy(n.data[start:end+1], v)
 }
 
-func (n *Node) getKeyByOffset(offset uint16) []byte {
-	keyLen := binary.BigEndian.Uint16(n.data[offset:])
-
-	start := offset + KEY_LEN_SIZE
-	end := offset + KEY_LEN_SIZE + keyLen
-
-	return n.data[start : end+1]
+func (n *Node) incrementNKeys() {
+	binary.BigEndian.PutUint16(n.data[2:], uint16(n.getNKeys())+1)
 }
 
-// TODO: we're assuming the key will fit into the node
-// TODO: we're assuming the key to be inserted is unique
-// TODO: we're assuming the key is not large enough to destroy a node (let's say node is empty and it occupies all the space)
-func (n *Node) insertKvPair(k, v []byte) {
+func (n *Node) insert(k, v []byte) {
+	// 0. make this logic robust so we could shift entire insertFirstKV over here otherwise there would be duplicate logic
+	// we can create a if here itself, if nkeys=0, no need to calculate index it would be given 0 because anyways if a very small
+	// key comes in then it might be possible that we put it at 0 so it's fine to handle everything in one place
+
+	// 1. figure out where to put the key
+	// think cases: it could be before the first key or even after the first key so think hard think hard (but
+	// remember to maintain both skillfully a right/left shift will help significantly)
+
+	// 2. as soon as idx is found, first shift everything by 6 to make space for pointer and offset, this is simple and deterministic
+
+	// 3. then insert the kv and use the returned offset which will then be inserted at the same idx calculated above in (2) into offset-array
+
+	// 4. increment nkeys
+}
+
+func (n *Node) debugPrint() {
+	fmt.Println("only showing top 50 bytes:")
+	fmt.Println(n.data[:50])
 }
