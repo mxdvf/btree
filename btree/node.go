@@ -3,6 +3,7 @@ package btree
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
 
@@ -12,6 +13,8 @@ const (
 )
 
 const (
+	PAGE_SIZE = 4096 // 4096 bytes
+
 	HEADER_SIZE  = 4 // 2 + 2 = 4 bytes
 	PTR_SIZE     = 4 // 4 bytes
 	OFFSET_SIZE  = 2 // 2 bytes
@@ -46,8 +49,15 @@ func newNode(t int) *Node {
 }
 
 func debugPrint(node *Node, top int) {
-	fmt.Printf("printing top %d bytes\n", top)
+	fmt.Printf("printing top %d bytes (0-%d)\n", top+1, top)
 	fmt.Println(node.data[:top+1])
+}
+
+func (node *Node) getSize() uint16 {
+	lastIdx := node.getNKeys() - 1
+	kvRangeLen := node.getOffset(lastIdx) + node.getKVLen(lastIdx)
+
+	return node.getHeaderAndMetadataLen() + kvRangeLen
 }
 
 func (node *Node) getNKeys() uint16 {
@@ -147,12 +157,12 @@ func (node *Node) shiftPtrAndOffsetRight(idx uint16) {
 	// make space for new kv's pointer
 	ptrPos := node.ptrPos(idx)
 	copy(node.data[ptrPos+PTR_SIZE:], node.data[ptrPos:])
-	clear(node.data[ptrPos : ptrPos+PTR_SIZE+1])
+	clear(node.data[ptrPos : ptrPos+PTR_SIZE])
 
 	// make space for new kv's offset
 	offsetPos := node.offsetPos(idx)
 	copy(node.data[offsetPos+OFFSET_SIZE:], node.data[offsetPos:])
-	clear(node.data[offsetPos : offsetPos+OFFSET_SIZE+1])
+	clear(node.data[offsetPos : offsetPos+OFFSET_SIZE])
 }
 
 func (node *Node) reEvaluateOffsetList(idx, calculatedPos, totalLen uint16) {
@@ -168,15 +178,24 @@ func (node *Node) reEvaluateOffsetList(idx, calculatedPos, totalLen uint16) {
 		// anything before idx requires no update
 		// anything after idx we just need to add totalKVLen
 		case i > idx:
-			binary.BigEndian.PutUint16(node.data[pos:], uint16(offsetBeforeUpdate+totalLen))
+			binary.BigEndian.PutUint16(node.data[pos:], offsetBeforeUpdate+totalLen)
 		}
 	}
 }
 
-func (node *Node) Insert(k, v []byte) {
+func (node *Node) getTotalLenPostInsert(k, v []byte) uint16 {
+	return uint16(len(k)+len(v)) + OFFSET_SIZE + PTR_SIZE + KEY_LEN_SIZE + VAL_LEN_SIZE
+}
+
+func (node *Node) Insert(k, v []byte) error {
 	// figure out where to put the key
-	insertIdx, insertPos := node.findInsertPos(k)
-	node.insertInLeafNode(k, v, insertIdx, insertPos)
+	if node.getSize()+node.getTotalLenPostInsert(k, v) < PAGE_SIZE {
+		insertIdx, insertPos := node.findInsertPos(k)
+		node.insertInLeafNode(k, v, insertIdx, insertPos)
+		return nil
+	}
+
+	return errors.New("sorry no more keys")
 }
 
 func (node *Node) insertInLeafNode(k, v []byte, insertIdx, insertPos uint16) {
@@ -198,4 +217,15 @@ func (node *Node) insertInLeafNode(k, v []byte, insertIdx, insertPos uint16) {
 	// update offset list with the newly added kv pair and also fix other offsets
 	insertPos -= node.getHeaderAndMetadataLen() // update insertPos to a relative offset before updating the list
 	node.reEvaluateOffsetList(insertIdx, insertPos, totalLen)
+}
+
+func (node *Node) Search(target []byte) bool {
+	var idx uint16
+	for idx = uint16(0); idx < node.getNKeys(); idx++ {
+		k, _ := node.getKV(idx)
+		if res := bytes.Compare(target, k); res == 0 {
+			return true
+		}
+	}
+	return false
 }

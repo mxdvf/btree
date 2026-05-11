@@ -1,6 +1,7 @@
 package btree
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -21,8 +22,21 @@ func TestNKeys(t *testing.T) {
 
 func TestLeafNodeInsert1(t *testing.T) {
 	n := NewLeafNode()
-	n.Insert([]byte("kacky"), []byte("mehul"))
-	n.Insert([]byte("A"), []byte("Z"))
-	n.Insert([]byte("z"), []byte("ain't no way"))
-	debugPrint(n, 50)
+	err := n.Insert([]byte("kacky-24"), []byte("mehul"))
+	if err != nil {
+		t.Fatalf("got an error on insertion: %v", err)
+	}
+	debugPrint(n, 60)
+}
+
+func TestLeafNodeInsert2(t *testing.T) {
+	n := NewLeafNode()
+	for i := range 100 {
+		k := fmt.Sprintf("kacky-%d", i)
+		err := n.Insert([]byte(k), []byte("mehul"))
+		if err != nil {
+			t.Fatalf("got an error on insertion: %v", err)
+			break
+		}
+	}
 }
