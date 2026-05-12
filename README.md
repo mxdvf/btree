@@ -7,7 +7,7 @@ And so correctness > speed (for V1).
 
 ## What it is
 
-A storage engine built to understand what happens underneath databases. No frameworks, no abstractions borrowed from elsewhere — everything from the disk layout to the write-ahead log is implemented from scratch. The name is aspirational I know, but v1 is about getting it right.
+A storage engine built to understand what happens underneath databases. No frameworks, no abstractions borrowed from elsewhere. Every component that you see in this repo are implemented from scratch. The name is aspirational I know, but v1 is only about getting it right.
 
 ## Project Layout
 
