@@ -2,9 +2,12 @@ package btree
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/mxdvf/superfastkv/internal/pagemanager"
 )
 
 const (
@@ -23,40 +26,44 @@ const (
 	ValLenSize  = 2    // 2 bytes
 )
 
+var (
+	ErrOverflow = errors.New("key+value too large")
+)
+
 type BTree struct {
 	root uint32
-	pm   *pageManager
+	pm   *pagemanager.PageManager
 }
 
-func NewBTree(filename string) (*BTree, error) {
+func NewBTree(filename string, sync bool) (*BTree, error) {
 	// open the main file
 	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open the main file: %w", err)
 	}
 	// initialize root and master pages
-	nm := newPageManager(fd)
-	root, err := initializeRootAndMasterPage(nm)
+	pm := pagemanager.NewPageManager(fd, PageSize, sync)
+	root, err := initializeRootAndMasterPage(pm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize root and master nodes: %v", err)
 	}
 	// initialize btree
 	return &BTree{
 		root: root,
-		pm:   newPageManager(fd),
+		pm:   pm,
 	}, nil
 }
 
-func initializeRootAndMasterPage(pm *pageManager) (uint32, error) {
-	buf, err := pm.read(0)
+func initializeRootAndMasterPage(pm *pagemanager.PageManager) (uint32, error) {
+	buf, err := pm.Read(0)
 	switch err {
 	// if there's EOF error, then the master page does not exist
 	case io.EOF:
-		if _, err := pm.allocate(); err != nil {
+		if _, err := pm.Allocate(); err != nil {
 			return 0, err
 		}
 		// initialize root page
-		root, err := pm.allocate()
+		root, err := pm.Allocate()
 		return root, err
 	// if there's no error then master page exists --> root page also exists
 	case nil:
@@ -71,7 +78,7 @@ func initializeRootAndMasterPage(pm *pageManager) (uint32, error) {
 func (t *BTree) Insert(k, v []byte) error {
 	// validate
 	if len(k)+len(v) > MaxAllowedKVLen {
-		return fmt.Errorf("key+value too large")
+		return ErrOverflow
 	}
 	// load the root from disk
 	var (
@@ -83,7 +90,7 @@ func (t *BTree) Insert(k, v []byte) error {
 	}
 	// perform a split if it's already full
 	if rootNode.full() {
-		rootNode, err = t.setupNewRoot(k, rootNode)
+		rootNode, err = t.setupNewRoot(rootNode)
 		if err != nil {
 			return fmt.Errorf("failed to setup the new root: %w", err)
 		}
@@ -100,7 +107,7 @@ func (t *BTree) Insert(k, v []byte) error {
 	return nil
 }
 
-func (t *BTree) setupNewRoot(k []byte, rootNode *Node) (*Node, error) {
+func (t *BTree) setupNewRoot(rootNode *Node) (*Node, error) {
 	// split root into left and right
 	left, right, medianIndex := rootNode.drySplit()
 	// persist the right node to disk

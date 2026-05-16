@@ -174,6 +174,9 @@ func (node *Node) findInsertPos(target []byte) (uint16, uint16) {
 }
 
 func (node *Node) insertSelf(k, v []byte) (uint16, error) {
+	if node.getSize()+node.getTotalLenIfInserted(k, v) >= PageSize {
+		panic("illegal node, it should have been split by a preemptive fix")
+	}
 	// find insertion point
 	insertIdx, insertPos := node.findInsertPos(k)
 	// increment nkeys

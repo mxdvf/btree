@@ -1,4 +1,4 @@
-package btree
+package pagemanager
 
 import (
 	"bytes"
@@ -7,14 +7,23 @@ import (
 	"testing"
 )
 
-func TestPageManagerAllocate(t *testing.T) {
+const (
+	MockPageSizeForTesting = 4096
+	MockSyncFlagForTesting = true
+)
+
+func setup(t *testing.T) *PageManager {
 	fd, err := os.OpenFile("test.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		t.Fatalf("error opening file: %v", err)
 	}
 
-	nm := newPageManager(fd)
-	latestPageNum, err := mockAllocateTwice(nm)
+	return NewPageManager(fd, MockPageSizeForTesting, MockSyncFlagForTesting)
+}
+
+func TestPageManagerAllocate(t *testing.T) {
+	pm := setup(t)
+	latestPageNum, err := mockAllocateTwice(pm)
 	if err != nil {
 		t.Fatalf("failed to allocate a page: %v", err)
 	}
@@ -23,20 +32,16 @@ func TestPageManagerAllocate(t *testing.T) {
 		t.Fatalf("page number expected: 1, got: %d", latestPageNum)
 	}
 
-	if nm.len() != 2 {
-		t.Fatalf("total pages expected: 2, got: %d", nm.len())
+	if pm.len() != 2 {
+		t.Fatalf("total pages expected: 2, got: %d", pm.len())
 	}
 }
 
 func TestPageManagerReadWrite(t *testing.T) {
-	fd, err := os.OpenFile("test.bin", os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		t.Fatalf("error opening file: %v", err)
-	}
+	pm := setup(t)
 
-	nm := newPageManager(fd)
-	mockAllocateTwice(nm)
-	pageNum, _ := mockAllocateTwice(nm)
+	mockAllocateTwice(pm)
+	pageNum, _ := mockAllocateTwice(pm)
 
 	pageNum = rand.Intn(pageNum + 1)
 	t.Logf("attempting to write and then read from page number %d", pageNum)
@@ -46,12 +51,12 @@ func TestPageManagerReadWrite(t *testing.T) {
 	copy(target[:], "hello")
 	copy(buf[:], "hello")
 
-	err = nm.write(uint32(pageNum), buf)
+	err := pm.Write(uint32(pageNum), buf)
 	if err != nil {
 		t.Fatalf("failed to write: %v", err)
 	}
 
-	buf1, err := nm.read(uint32(pageNum))
+	buf1, err := pm.Read(uint32(pageNum))
 	if err != nil {
 		t.Fatalf("failed to read: %v", err)
 	}
@@ -61,12 +66,12 @@ func TestPageManagerReadWrite(t *testing.T) {
 	}
 }
 
-func mockAllocateTwice(nm *pageManager) (int, error) {
-	_, err := nm.allocate()
+func mockAllocateTwice(pm *PageManager) (int, error) {
+	_, err := pm.Allocate()
 	if err != nil {
 		return 0, err
 	}
-	pageNum, err := nm.allocate()
+	pageNum, err := pm.Allocate()
 	if err != nil {
 		return 0, err
 	}

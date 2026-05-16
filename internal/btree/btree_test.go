@@ -20,8 +20,10 @@ func init() {
 
 func setup(t *testing.T) *BTree {
 	filename := fmt.Sprintf("test/test-%v.bin", rand.Int())
-	t.Logf("running test case for file: %v", filename)
-	tree, err := NewBTree(filename)
+	if t != nil {
+		t.Logf("running test case for file: %v", filename)
+	}
+	tree, err := NewBTree(filename, false)
 	if err != nil {
 		t.Fatalf("cannot initialize tree: %v", err)
 	}
@@ -32,7 +34,7 @@ func setup(t *testing.T) *BTree {
 func TestBtreeInitialize(t *testing.T) {
 	tree := setup(t)
 
-	r, err := tree.pm.read(tree.root)
+	r, err := tree.pm.Read(tree.root)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -51,7 +53,7 @@ func TestBtreeSimpleInsert1(t *testing.T) {
 		t.Fatalf("insert failed: %v", err)
 	}
 
-	buf, _ := tree.pm.read(tree.root)
+	buf, _ := tree.pm.Read(tree.root)
 	node := NewNode(buf)
 
 	if node.getNKeys() != 1 {
@@ -76,7 +78,7 @@ func TestBtreeSimpleInsert2(t *testing.T) {
 		t.Fatalf("insert failed: %v", err)
 	}
 
-	buf, _ := tree.pm.read(tree.root)
+	buf, _ := tree.pm.Read(tree.root)
 	node := NewNode(buf)
 	if node.getNKeys() != 1 {
 		t.Fatal("node should have only 1 key")
@@ -95,7 +97,7 @@ func TestBtreeSimpleInsert2(t *testing.T) {
 		t.Fatalf("insert failed: %v", err)
 	}
 
-	buf, _ = tree.pm.read(tree.root)
+	buf, _ = tree.pm.Read(tree.root)
 	node = NewNode(buf)
 	if node.getNKeys() != 2 {
 		t.Fatal("node should have 2 keys")
@@ -106,31 +108,6 @@ func TestBtreeSimpleInsert2(t *testing.T) {
 	}
 	if res := bytes.Compare(v, v1); res != 0 {
 		t.Fatal("vals don't match up")
-	}
-}
-
-func TestBtreeFillToBrim(t *testing.T) {
-	tree := setup(t)
-
-	var buf []byte
-	var node *Node
-
-	for i := range 3 {
-		k := strings.Repeat("A", 1337) + "_" + strconv.Itoa(i)
-		if err := tree.Insert([]byte(k), []byte("mehul")); err != nil {
-			t.Fatalf("got an error on insertion: %v", err)
-		}
-	}
-
-	k := "z|z|z|z|z|"
-	if err := tree.Insert([]byte(k), []byte("mehulA")); err != nil {
-		t.Fatalf("got an error on insertion: %v", err)
-	}
-
-	buf, _ = tree.pm.read(tree.root)
-	node = NewNode(buf)
-	if node.getSize() != 4096 {
-		t.Fatalf("node still has space, has only occupied %v bytes", node.getSize())
 	}
 }
 
@@ -146,7 +123,7 @@ func TestBtreeFillUntilRootSplits1Level(t *testing.T) {
 		}
 	}
 
-	tree.print()
+	// tree.print()
 
 	// TODO: search for these keys as well
 }
@@ -162,7 +139,7 @@ func TestBtreeFillUntilRootSplits2Level(t *testing.T) {
 		}
 	}
 
-	tree.print()
+	// tree.print()
 
 	// TODO: search for these keys as well
 }
@@ -177,7 +154,17 @@ func TestBtreeUnboundedInsert(t *testing.T) {
 		}
 	}
 
-	tree.print()
+	// tree.print()
 
 	// TODO: search for these keys as well
+}
+
+func BenchmarkInsert(b *testing.B) {
+	tr := setup(nil)
+	for i := 0; i < b.N; i++ {
+		k, v := []byte(fmt.Sprintf("kacky-%v", i)), []byte("mehul")
+		if err := tr.Insert(k, v); err != nil && err != ErrOverflow {
+			b.Fatal("insertion failed: %w", err)
+		}
+	}
 }

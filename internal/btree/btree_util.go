@@ -13,7 +13,7 @@ func (t *BTree) print() {
 		queueLen := len(queue)
 		for i := range queueLen {
 			pageNum := queue[i]
-			buf, _ := t.pm.read(pageNum)
+			buf, _ := t.pm.Read(pageNum)
 			n := NewNode(buf)
 			// visual print logic
 			fmt.Printf("=-----==-----Level: %d-----==-----= (node size: %v)\n", level, n.getSize())
@@ -34,7 +34,7 @@ func (t *BTree) print() {
 
 func (t *BTree) loadAsNode(pageNum uint32) (*Node, error) {
 	// load the root node from disk
-	root, err := t.pm.read(pageNum)
+	root, err := t.pm.Read(pageNum)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the root node: %w", err)
 	}
@@ -43,12 +43,12 @@ func (t *BTree) loadAsNode(pageNum uint32) (*Node, error) {
 }
 
 func (t *BTree) copyToNewPage(node *Node) (uint32, error) {
-	pageNum, err := t.pm.allocate()
+	pageNum, err := t.pm.Allocate()
 	if err != nil {
 		return 0, err
 	}
 	// write the updated bytes to the newly allocated page
-	if err := t.pm.write(pageNum, node.data); err != nil {
+	if err := t.pm.Write(pageNum, node.data); err != nil {
 		return 0, err
 	}
 	// return the newly allocated page num
@@ -57,14 +57,14 @@ func (t *BTree) copyToNewPage(node *Node) (uint32, error) {
 
 func (t *BTree) pointMasterToNewRoot(pageNum uint32) error {
 	// read master page
-	buf, err := t.pm.read(0)
+	buf, err := t.pm.Read(0)
 	if err != nil {
 		return fmt.Errorf("failed to read the master page: %w", err)
 	}
 	// update master page pointer to root
 	binary.BigEndian.PutUint32(buf[0:], pageNum)
 	// write back master page to disk
-	if err := t.pm.write(0, buf); err != nil {
+	if err := t.pm.Write(0, buf); err != nil {
 		return fmt.Errorf("failed to write to master page: %w", err)
 	}
 	// also update the in-mem pointer

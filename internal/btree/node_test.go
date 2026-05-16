@@ -72,12 +72,26 @@ func TestNodeLeafNodeInsert3(t *testing.T) {
 		}
 	}
 
-	t.Logf("node is filled to %v bytes\n", n.getSize())
+	t.Logf("node is filled to %v/%v bytes\n", n.getSize(), PageSize)
 	k1, v1 := []byte("ducky-175"), []byte("mehul")
 	t.Logf("and about to insert a kv pair of post-insert size: %v\n", n.getTotalLenIfInserted(k1, v1))
 
-	_, err := n.insertSelf(k1, v1)
-	if err == nil {
-		t.Fatalf("should've thrown an overflow error: %v", err)
+	panicked := false
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				// check it's the right panic
+				if msg, ok := r.(string); ok && msg == "illegal node, it should have been split by a preemptive fix" {
+					panicked = true
+				} else {
+					t.Errorf("wrong panic: %v", r)
+				}
+			}
+		}()
+		n.insertSelf(k1, v1)
+	}()
+
+	if !panicked {
+		t.Fatal("expected a panic on overflow but got none")
 	}
 }
