@@ -25,7 +25,7 @@ func TestNodeLeafNodeInsert1(t *testing.T) {
 	buf := make([]byte, 4096)
 	n := NewNode(buf)
 	k, v := []byte("kacky-24"), []byte("mehul")
-	err := n.insert(k, v)
+	_, err := n.insert(k, v)
 	if err != nil {
 		t.Fatalf("got an error on insertion: %v", err)
 	}
@@ -41,14 +41,14 @@ func TestNodeLeafNodeInsert1(t *testing.T) {
 func TestNodeLeafNodeInsert2(t *testing.T) {
 	buf := make([]byte, 4096)
 	n := NewNode(buf)
-	err := n.insert([]byte("kacky"), []byte("mehul"))
+	_, err := n.insert([]byte("kacky"), []byte("mehul"))
 	if err != nil {
 		t.Fatalf("got an error on insertion: %v", err)
 	}
 
 	t.Log(debugPrint(n, 100))
 
-	err = n.insert([]byte("kacky11"), []byte("mehul11"))
+	_, err = n.insert([]byte("kacky11"), []byte("mehul11"))
 	if err != nil {
 		t.Fatalf("got an error on second insertion: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestNodeLeafNodeInsert3(t *testing.T) {
 	n := NewNode(buf)
 	for i := range 174 {
 		k, v := []byte(fmt.Sprintf("kacky-%d", i)), []byte("mehul")
-		err := n.insert(k, v)
+		_, err := n.insert(k, v)
 		if err != nil {
 			t.Fatalf("got an error on insertion: %v", err)
 			break
@@ -81,7 +81,7 @@ func TestNodeLeafNodeInsert3(t *testing.T) {
 	k1, v1 := []byte("kacky-175"), []byte("mehul")
 	t.Logf("and about to insert a kv pair of post-insert size: %v\n", n.getTotalLenPostInsert(k1, v1))
 
-	err := n.insert(k1, v1)
+	_, err := n.insert(k1, v1)
 	if err == nil {
 		t.Fatalf("should've thrown an overflow error: %v", err)
 	}

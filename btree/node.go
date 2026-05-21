@@ -187,9 +187,9 @@ func (node *Node) getTotalLenPostInsert(k, v []byte) uint16 {
 	return uint16(len(k)+len(v)) + OFFSET_SIZE + PTR_SIZE + KEY_LEN_SIZE + VAL_LEN_SIZE
 }
 
-func (node *Node) insert(k, v []byte) error {
+func (node *Node) insert(k, v []byte) (uint16, error) {
 	if node.getSize()+node.getTotalLenPostInsert(k, v) >= PAGE_SIZE {
-		return fmt.Errorf("node does not have enough space")
+		return 0, fmt.Errorf("node does not have enough space")
 	}
 	insertIdx, insertPos := node.findInsertPos(k)
 	// increment nkeys (do not re-order, everything
@@ -206,7 +206,7 @@ func (node *Node) insert(k, v []byte) error {
 	// update offset list with the newly added kv pair and also fix other offsets
 	insertPos -= node.getHeaderAndMetadataLen() // update insertPos to a relative offset before updating the list
 	node.reEvaluateOffsetList(insertIdx, insertPos, totalLen)
-	return nil
+	return insertIdx, nil
 }
 
 func (node *Node) drySplit() (*Node, *Node, uint16) {
@@ -215,6 +215,9 @@ func (node *Node) drySplit() (*Node, *Node, uint16) {
 	// initialize a new node
 	rightNode := NewNode(make([]byte, 4096))
 	leftNode := NewNode(make([]byte, 4096)) // TODO: should not create a new left node
+	// set node type
+	binary.BigEndian.PutUint16(rightNode.data[0:], node.getType())
+	binary.BigEndian.PutUint16(leftNode.data[0:], node.getType())
 	// from here on, we will operate on right half of each component of the node
 	// using (medianIndex+1) which involves extracting kv range, offset list,
 	// pointers and also reducing nkeys
@@ -232,4 +235,8 @@ func (node *Node) drySplit() (*Node, *Node, uint16) {
 	}
 	// return
 	return leftNode, rightNode, medianIndex
+}
+
+func (n *Node) full(k, v []byte) bool {
+	return n.getSize()+n.getTotalLenPostInsert(k, v) >= PAGE_SIZE
 }

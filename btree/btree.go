@@ -61,7 +61,7 @@ func (t *BTree) Insert(k, v []byte) error {
 	}
 	rootNode := NewNode(root)
 	// special case for fixing an overfull root node
-	if rootNode.getSize()+rootNode.getTotalLenPostInsert(k, v) >= PAGE_SIZE {
+	if rootNode.full(k, v) { // TODO: this condition is a bit shaky, considering in-mem implementation, it should be something along the lines of "root == 2*t-1" because we shouldn't wait for a key to be inserted before root is split
 		newRootPageNum, err := t.splitRoot(rootNode)
 		if err != nil {
 			return fmt.Errorf("failed to split the root: %w", err)
@@ -91,12 +91,12 @@ func (t *BTree) splitRoot(root *Node) (uint32, error) {
 	// persist the right node to disk
 	rightPageNum, err := t.copyToNewPage(right)
 	if err != nil {
-		return 0, fmt.Errorf("could not persist the right page (new sibling) while splitting root: %w", err)
+		return 0, fmt.Errorf("could not persist the right node while splitting root: %w", err)
 	}
 	// persist left child
 	leftPageNum, err := t.copyToNewPage(left) // TODO: a new left node should not be created, it should be manipulated to remove unnecessary data
 	if err != nil {
-		return 0, fmt.Errorf("could not persist the left page (new sibling) while splitting root: %w", err)
+		return 0, fmt.Errorf("could not persist the left node while splitting root: %w", err)
 	}
 	// create new internal root
 	buf := make([]byte, PAGE_SIZE)
@@ -132,6 +132,7 @@ func (t *BTree) pointMasterToNewRoot(pageNum uint32) error {
 
 func (t *BTree) insertInSubtree(node *Node, k, v []byte) (uint32, error) {
 	// TODO: preemptive fix here
+	t.preemptiveFix(node, k, v)
 
 	switch node.getType() {
 	case NODE_TYPE_LEAF:
@@ -142,15 +143,52 @@ func (t *BTree) insertInSubtree(node *Node, k, v []byte) (uint32, error) {
 		// orchestrator logic to enter into the correct subtree page
 		// recursively insert on that subtree's root, update all page nums
 		// upwards
+
 		return t.handleInsertionInInternalNode(node, k, v)
 	}
 
 	panic("should not have reached this point")
 }
 
+func (t *BTree) preemptiveFix(node *Node, k, v []byte) error {
+	// 1. find the appropriate child that you're about to enter into
+	idx, _ := node.findInsertPos(k)
+	// 2. load that child into a node
+	appropriateChildPageNum := node.getPtr(idx)
+	appropriateChild, err := t.pm.read(appropriateChildPageNum)
+	if err != nil {
+		return fmt.Errorf("could not read the appropriate subtree's page: %w", err)
+	}
+	child := NewNode(appropriateChild)
+	// 3. check if it's full, if yes break it down into 2 nodes
+	if child.full(k, v) {
+		rightChild, leftChild, medianIndex := child.drySplit()
+		// persist the right node to disk
+		rightPageNum, err := t.copyToNewPage(rightChild)
+		if err != nil {
+			return fmt.Errorf("could not persist the right node during preemptive fix: %w", err)
+		}
+		// persist left child
+		leftPageNum, err := t.copyToNewPage(leftChild) // TODO: a new left node should not be created, it should be manipulated to remove unnecessary data
+		if err != nil {
+			return fmt.Errorf("could not persist the left node during preemptive fix: %w", err)
+		}
+		// insert median key into new root
+		medianKey, medianVal := child.getKV(medianIndex)
+		idx, err := node.insert(medianKey, medianVal)
+		if err != nil {
+			return fmt.Errorf("failed to insert median key and value during preemptive fix: %w", err)
+		}
+		// set pointers to left and right children
+		node.setPtr(idx, leftPageNum)
+		node.setPtr(idx+1, rightPageNum)
+	}
+	return nil
+}
+
 func (t *BTree) handleInsertionInLeafNode(node *Node, k, v []byte) (uint32, error) {
 	// attempt insertion on the leaf node
-	if err := node.insert(k, v); err != nil {
+	if _, err := node.insert(k, v); err != nil {
 		return 0, err
 	}
 	// allocate and write to the new page

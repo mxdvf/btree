@@ -147,7 +147,7 @@ func TestBtreeSplitRoot(t *testing.T) {
 	}
 }
 
-func TestBtreeSplitRandomInternalNode(t *testing.T) {
+func TestBtreeSplitInternalNode(t *testing.T) {
 	filename := fmt.Sprintf("test/test-%v.bin", rand.Int())
 	t.Logf("running test case for file: %v", filename)
 	tree, err := NewBTree(filename)
@@ -155,5 +155,65 @@ func TestBtreeSplitRandomInternalNode(t *testing.T) {
 		t.Fatalf("cannot initialize tree: %v", err)
 	}
 
-	fmt.Println(tree)
+	for i := range 174 {
+		k := fmt.Sprintf("kacky-%d", i)
+		err := tree.Insert([]byte(k), []byte("mehul"))
+		if err != nil {
+			t.Fatalf("got an error on insertion: %v", err)
+		}
+	}
+
+	k1, v1 := []byte("kacky-175"), []byte("mehul")
+	tree.Insert(k1, v1)
+	// ---- root split happened here ---- //
+
+	// buf, _ := tree.pm.read(tree.root)
+	// root := NewNode(buf)
+	// fmt.Println(root.data)
+
+	// // reading child 1
+	// buf, _ = tree.pm.read(179)
+	// left := NewNode(buf)
+	// fmt.Println(left.data)
+
+	// // reading child 2
+	// buf, _ = tree.pm.read(176)
+	// right := NewNode(buf)
+	// fmt.Println(right.data)
+
+	for i := range 91 {
+		k := fmt.Sprintf("backy-%d", i)
+		err := tree.Insert([]byte(k), []byte("mehul"))
+		if err != nil {
+			t.Fatalf("got an error on insertion: %v", err)
+		}
+	}
+
+	k1, v1 = []byte("a"), []byte("mehul")
+	err = tree.Insert(k1, v1)
+	if err != nil {
+		t.Log("lemme have a look")
+	}
+
+	k1, v1 = []byte("a2"), []byte("mehul")
+	err = tree.Insert(k1, v1)
+	if err != nil {
+		t.Log("lemme have a look")
+	}
+
+	// TODO: fix this test
+
+	buf, _ := tree.pm.read(tree.root)
+	root := NewNode(buf)
+	fmt.Println(root.data)
+
+	// reading child 1
+	buf, _ = tree.pm.read(367)
+	left := NewNode(buf)
+	fmt.Println(left.data)
+
+	// reading child 2
+	buf, _ = tree.pm.read(363)
+	right := NewNode(buf)
+	fmt.Println(right.data)
 }
