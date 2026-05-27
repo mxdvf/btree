@@ -123,9 +123,16 @@ func TestBtreeFillUntilRootSplits1Level(t *testing.T) {
 		}
 	}
 
-	// tree.print()
-
-	// TODO: search for these keys as well
+	for _, kNum := range kNums {
+		k := strings.Repeat("A", 1338-len(kNum)) + "_" + kNum
+		v, err := tree.Search([]byte(k))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v == nil {
+			t.Fatalf("value exists because the key has been inserted: %v", k)
+		}
+	}
 }
 
 func TestBtreeFillUntilRootSplits2Level(t *testing.T) {
@@ -139,9 +146,16 @@ func TestBtreeFillUntilRootSplits2Level(t *testing.T) {
 		}
 	}
 
-	// tree.print()
-
-	// TODO: search for these keys as well
+	for _, kNum := range kNums {
+		k := strings.Repeat("A", 1338-len(kNum)) + "_" + kNum
+		v, err := tree.Search([]byte(k))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v == nil {
+			t.Fatalf("value exists because the key has been inserted: %v", k)
+		}
+	}
 }
 
 func TestBtreeUnboundedInsert(t *testing.T) {
@@ -154,9 +168,16 @@ func TestBtreeUnboundedInsert(t *testing.T) {
 		}
 	}
 
-	// tree.print()
-
-	// TODO: search for these keys as well
+	for i := range 10000 {
+		k := strings.Repeat("A", 1338-len(strconv.Itoa(i))) + "_" + strconv.Itoa(i)
+		v, err := tree.Search([]byte(k))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if v == nil {
+			t.Fatalf("value exists because the key has been inserted: %v", k)
+		}
+	}
 }
 
 func BenchmarkInsert(b *testing.B) {

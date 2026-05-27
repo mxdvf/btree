@@ -43,6 +43,10 @@ func (node *Node) incrementNKeys() {
 	binary.BigEndian.PutUint16(node.data[2:], node.getNKeys()+1)
 }
 
+func (node *Node) decrementNKeys() {
+	binary.BigEndian.PutUint16(node.data[2:], node.getNKeys()-1)
+}
+
 func (node *Node) getHeaderAndMetadataLen() uint16 {
 	return HeaderSize + PointerSize*(node.getNKeys()+1) + OffsetSize*node.getNKeys()
 }
@@ -78,7 +82,7 @@ func (node *Node) getKV(idx uint16) ([]byte, []byte) {
 	return key, val
 }
 
-func (node *Node) putKV(k, v []byte, pos uint16) {
+func (node *Node) setKV(k, v []byte, pos uint16) {
 	// a seek based approach
 	binary.BigEndian.PutUint16(node.data[pos:], uint16(len(k)))
 	pos += KeyLenSize
@@ -91,6 +95,14 @@ func (node *Node) putKV(k, v []byte, pos uint16) {
 	// perform action
 	copy(node.data[pos:pos+uint16(len(v))], v)
 }
+
+// func (node *Node) updateKV(idx uint16, k, v []byte) {
+// 	// simple approach: delete then insert
+// 	// works correctly because updateKV is only called when
+// 	// new key has same or similar size (inorder predecessor/successor)
+// 	node.deleteAt(idx)
+// 	node.insertSelf(k, v)
+// }
 
 func (node *Node) getKVLen(idx uint16) uint16 {
 	pos := node.kvPos(idx)
@@ -119,9 +131,21 @@ func (node *Node) getTotalLenIfInserted(k, v []byte) uint16 {
 	return uint16(len(k)+len(v)) + OffsetSize + PointerSize + KeyLenSize + ValLenSize
 }
 
-func (n *Node) full() bool {
+func (n *Node) overflow() bool {
+	// a node overflows when it no longer has room for the worst-case key
+	// (aka one that's 1344B) that could be promoted from its child into itself
+	// during a split which means a median key of max size. this was a bug that
+	// took me 6 days to figure out, although i admit it was an oversight on my part.
 	return n.getSize() > PageSize-MaxAllowedKVLen
 }
+
+func (node *Node) underflow() bool {
+	// minimum degree t=2, so minimum keys = t-1 = 1
+	// a node underflows when it has only 1 key and we need to delete from it
+	return node.getNKeys() <= 1
+}
+
+// below are almost all insertion related methods
 
 func (node *Node) drySplit() (*Node, *Node, uint16) {
 	// check for the median key
@@ -186,7 +210,7 @@ func (node *Node) insertSelf(k, v []byte) (uint16, error) {
 	node.makeSpace(insertIdx, insertPos, kvLen)
 	// put kv there
 	insertPos += PointerSize + OffsetSize
-	node.putKV(k, v, insertPos)
+	node.setKV(k, v, insertPos)
 	// fix offsets for everyone using a relative offset pos
 	insertPos -= node.getHeaderAndMetadataLen() // update insertPos to a relative offset before updating the list
 	node.reEvaluateOffsetList(insertIdx, insertPos, kvLen)
@@ -225,3 +249,66 @@ func (node *Node) reEvaluateOffsetList(idx, calculatedPos, totalLen uint16) {
 		}
 	}
 }
+
+// // below are almost all deletion related methods
+
+// func (node *Node) deleteKey(k []byte) error {
+// 	idx, _ := node.findInsertPos(k)
+// 	if idx >= node.getNKeys() {
+// 		return fmt.Errorf("key not found")
+// 	}
+// 	existingKey, _ := node.getKV(idx)
+// 	if !bytes.Equal(existingKey, k) {
+// 		return fmt.Errorf("key not found")
+// 	}
+// 	node.deleteAt(idx)
+// 	return nil
+// }
+
+// func (node *Node) deleteLast() {
+// 	node.deleteAt(node.getNKeys() - 1)
+// }
+
+// func (node *Node) deleteFirst() {
+// 	node.deleteAt(0)
+// }
+
+// func (node *Node) deleteAt(idx uint16) {
+// 	// remove kv by shifting everything left
+// 	kvLen := node.getKVLen(idx)
+// 	kvStart := node.kvPos(idx)
+// 	copy(node.data[kvStart:], node.data[kvStart+kvLen:])
+// 	clear(node.data[len(node.data)-int(kvLen):])
+// 	// remove pointer at idx
+// 	ptrPos := node.ptrPos(idx)
+// 	copy(node.data[ptrPos:], node.data[ptrPos+PointerSize:])
+// 	// remove offset at idx and update remaining offsets
+// 	node.decrementNKeys()
+// 	offsetPos := node.offsetPos(idx)
+// 	copy(node.data[offsetPos:], node.data[offsetPos+OffsetSize:])
+// 	// fix offsets for all keys after idx
+// 	for i := idx; i < node.getNKeys(); i++ {
+// 		pos := node.offsetPos(i)
+// 		current := binary.BigEndian.Uint16(node.data[pos:])
+// 		binary.BigEndian.PutUint16(node.data[pos:], current-kvLen)
+// 	}
+// }
+
+// func (node *Node) insertAtFront(k, v []byte) {
+// 	// temporarily insert then it'll land sorted — findInsertPos handles it
+// 	node.insertSelf(k, v)
+// }
+
+// func (node *Node) shiftPtrsRight() {
+// 	// shift all pointers one position right to make room at index 0
+// 	for i := node.getNKeys(); i > 0; i-- {
+// 		node.setPtr(i, node.getPtr(i-1))
+// 	}
+// }
+
+// func (node *Node) shiftPtrsLeft() {
+// 	// shift all pointers one position left, dropping index 0
+// 	for i := uint16(0); i <= node.getNKeys(); i++ {
+// 		node.setPtr(i, node.getPtr(i+1))
+// 	}
+// }
