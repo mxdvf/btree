@@ -23,7 +23,7 @@ func (nm *pageManager) allocate() (uint32, error) {
 
 func (nm *pageManager) read(pageNum uint32) ([]byte, error) {
 	// given a page number
-	start := int64(pageNum * PAGE_SIZE)
+	start := int64(pageNum * PageSize)
 	buf := make([]byte, 4096)
 	// read the bytes of tha page into the buffer
 	_, err := nm.file.ReadAt(buf, start)
@@ -32,7 +32,7 @@ func (nm *pageManager) read(pageNum uint32) ([]byte, error) {
 
 func (nm *pageManager) write(pageNum uint32, buf []byte) error {
 	// given a page number and 4096 bytes
-	start := int64(pageNum * PAGE_SIZE)
+	start := int64(pageNum * PageSize)
 	// write the bytes for that page
 	_, err := nm.file.WriteAt(buf, start)
 	return err
