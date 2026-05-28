@@ -95,3 +95,22 @@ func TestNodeLeafNodeInsert3(t *testing.T) {
 		t.Fatal("expected a panic on overflow but got none")
 	}
 }
+
+// func TestNodeDeleteAt(t *testing.T) {
+// 	buf := make([]byte, 4096)
+// 	n := NewNode(buf)
+// 	keys := []string{"apple", "banana", "cherry", "date", "elderberry"}
+// 	for _, k := range keys {
+// 		n.insertSelf([]byte(k), []byte("val"))
+// 	}
+// 	// delete middle key
+// 	n.deleteAt(1) // should remove "cherry"
+
+// 	if n.getNKeys() != 4 {
+// 		t.Fatalf("expected 4 keys, got %d", n.getNKeys())
+// 	}
+// 	k, _ := n.getKV(2)
+// 	if string(k) != "date" {
+// 		t.Fatalf("expected 'date' at idx 2, got %s", k)
+// 	}
+// }

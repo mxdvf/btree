@@ -96,14 +96,6 @@ func (node *Node) setKV(k, v []byte, pos uint16) {
 	copy(node.data[pos:pos+uint16(len(v))], v)
 }
 
-// func (node *Node) updateKV(idx uint16, k, v []byte) {
-// 	// simple approach: delete then insert
-// 	// works correctly because updateKV is only called when
-// 	// new key has same or similar size (inorder predecessor/successor)
-// 	node.deleteAt(idx)
-// 	node.insertSelf(k, v)
-// }
-
 func (node *Node) getKVLen(idx uint16) uint16 {
 	pos := node.kvPos(idx)
 	klen := binary.BigEndian.Uint16(node.data[pos:])
@@ -122,7 +114,6 @@ func (node *Node) getPtr(idx uint16) uint32 {
 }
 
 func (node *Node) setPtr(idx uint16, ptr uint32) {
-	// TODO: why would i ever use idx=nkeys(), think about it, i guess i am missing something
 	pos := HeaderSize + PointerSize*idx
 	binary.BigEndian.PutUint32(node.data[pos:], ptr)
 }
@@ -250,65 +241,4 @@ func (node *Node) reEvaluateOffsetList(idx, calculatedPos, totalLen uint16) {
 	}
 }
 
-// // below are almost all deletion related methods
-
-// func (node *Node) deleteKey(k []byte) error {
-// 	idx, _ := node.findInsertPos(k)
-// 	if idx >= node.getNKeys() {
-// 		return fmt.Errorf("key not found")
-// 	}
-// 	existingKey, _ := node.getKV(idx)
-// 	if !bytes.Equal(existingKey, k) {
-// 		return fmt.Errorf("key not found")
-// 	}
-// 	node.deleteAt(idx)
-// 	return nil
-// }
-
-// func (node *Node) deleteLast() {
-// 	node.deleteAt(node.getNKeys() - 1)
-// }
-
-// func (node *Node) deleteFirst() {
-// 	node.deleteAt(0)
-// }
-
-// func (node *Node) deleteAt(idx uint16) {
-// 	// remove kv by shifting everything left
-// 	kvLen := node.getKVLen(idx)
-// 	kvStart := node.kvPos(idx)
-// 	copy(node.data[kvStart:], node.data[kvStart+kvLen:])
-// 	clear(node.data[len(node.data)-int(kvLen):])
-// 	// remove pointer at idx
-// 	ptrPos := node.ptrPos(idx)
-// 	copy(node.data[ptrPos:], node.data[ptrPos+PointerSize:])
-// 	// remove offset at idx and update remaining offsets
-// 	node.decrementNKeys()
-// 	offsetPos := node.offsetPos(idx)
-// 	copy(node.data[offsetPos:], node.data[offsetPos+OffsetSize:])
-// 	// fix offsets for all keys after idx
-// 	for i := idx; i < node.getNKeys(); i++ {
-// 		pos := node.offsetPos(i)
-// 		current := binary.BigEndian.Uint16(node.data[pos:])
-// 		binary.BigEndian.PutUint16(node.data[pos:], current-kvLen)
-// 	}
-// }
-
-// func (node *Node) insertAtFront(k, v []byte) {
-// 	// temporarily insert then it'll land sorted — findInsertPos handles it
-// 	node.insertSelf(k, v)
-// }
-
-// func (node *Node) shiftPtrsRight() {
-// 	// shift all pointers one position right to make room at index 0
-// 	for i := node.getNKeys(); i > 0; i-- {
-// 		node.setPtr(i, node.getPtr(i-1))
-// 	}
-// }
-
-// func (node *Node) shiftPtrsLeft() {
-// 	// shift all pointers one position left, dropping index 0
-// 	for i := uint16(0); i <= node.getNKeys(); i++ {
-// 		node.setPtr(i, node.getPtr(i+1))
-// 	}
-// }
+// below are almost all deletion related methods
